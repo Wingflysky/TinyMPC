@@ -8,10 +8,6 @@ using Eigen::Matrix;
 
 extern "C" {
 
-static inline tinytype norm(Matrix<tinytype, 3, 1> v) {
-    return sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
-}
-
 int main() {
 
     // Copy data from problem_data/quadrotor*.hpp
@@ -29,6 +25,8 @@ int main() {
     params.Q = Eigen::Map<Matrix<tinytype, NSTATES, NSTATES, Eigen::RowMajor>>(Q_data);
     params.Qf = Eigen::Map<Matrix<tinytype, NSTATES, NSTATES, Eigen::RowMajor>>(Qf_data);
     params.R = Eigen::Map<Matrix<tinytype, NINPUTS, NINPUTS, Eigen::RowMajor>>(R_data);
+    // params.u_min = tiny_VectorNu(-1.0,-2.1,-3.2,-4.3).replicate<1,NHORIZON-1>();
+    // params.u_max = tiny_VectorNu(1.0,2.1,3.2,4.3).replicate<1,NHORIZON-1>();
     params.u_min = tiny_MatrixNuNhm1::Constant(-0.5);
     params.u_max = tiny_MatrixNuNhm1::Constant(0.5);
     for (int i=0; i<NHORIZON; i++) {
@@ -68,34 +66,31 @@ int main() {
     // Copy reference trajectory into Eigen matrix
     Matrix<tinytype, NSTATES, NTOTAL, Eigen::ColMajor> Xref_total = Eigen::Map<Matrix<tinytype, NTOTAL, NSTATES, Eigen::RowMajor>>(Xref_data).transpose();
 
+
+    // std::cout << params.u_max << std::endl;
+
     params.Xref = Xref_total.block<NSTATES, NHORIZON>(0,0);
-    problem.x.col(0) = params.Xref.col(0);
+    // problem.x.col(0) = params.Xref.col(0);
 
-    Matrix<tinytype, 3, 1> obstacle_center = {0.0, 2.0, 0.5};
-    tinytype obstacle_velocity = 1 * DT;
+    // Matrix<tinytype, 3, 1> obstacle_center = {0.0, 2.0, 0.5};
+    // tinytype obstacle_velocity = 1 * DT;
 
-    tinytype r_obstacle = 0.75;
-    tinytype b;
-    Matrix<tinytype, 3, 1> xc;
-    Matrix<tinytype, 3, 1> a;
-    Matrix<tinytype, 3, 1> q_c;
-    for (int i=0; i<NHORIZON; i++) {
-        xc = obstacle_center - params.Xref.col(i).head(3);
-        a = xc/norm(xc);
-        params.A_constraints[i].head(3) = a.transpose();
+    // tinytype r_obstacle = 0.75;
+    // tinytype b;
+    // Matrix<tinytype, 3, 1> xc;
+    // Matrix<tinytype, 3, 1> a;
+    // Matrix<tinytype, 3, 1> q_c;
+    // for (int i=0; i<NHORIZON; i++) {
+    //     xc = obstacle_center - params.Xref.col(i).head(3);
+    //     a = xc/xc.norm();
+    //     params.A_constraints[i].head(3) = a.transpose();
 
-        q_c = obstacle_center - r_obstacle*a;
-        b = a.transpose() * q_c;
-        params.x_max[i](0) = b;
-        std::cout << params.A_constraints[i].head(3) << std::endl;
-        std::cout << params.x_max[i](0) << "\n" << std::endl;
-    }
-
-    // solve_admm(&problem, &params);
-    // std::cout << problem.iter << std::endl;
-
-    // params.x_max[0] = tiny_VectorNc::Constant(1);
-    // params.A_constraints[0] << 0.32444, 0.48666, 0.81111, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+    //     q_c = obstacle_center - r_obstacle*a;
+    //     b = a.transpose() * q_c;
+    //     params.x_max[i](0) = b;
+    //     // std::cout << params.A_constraints[i].head(3) << std::endl;
+    //     // std::cout << params.x_max[i](0) << "\n" << std::endl;
+    // }
 
     return 0;
 }

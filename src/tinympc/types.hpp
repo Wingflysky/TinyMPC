@@ -4,6 +4,7 @@
 #include "constants.hpp"
 
 using Eigen::Matrix;
+using Eigen::DiagonalMatrix;
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,6 +20,7 @@ typedef Matrix<tinytype, NSTATES, NINPUTS> tiny_MatrixNxNu;
 typedef Matrix<tinytype, NINPUTS, NSTATES> tiny_MatrixNuNx;
 typedef Matrix<tinytype, NINPUTS, NINPUTS> tiny_MatrixNuNu;
 typedef Matrix<tinytype, NSTATE_CONSTRAINTS, NSTATES> tiny_MatrixNcNx;
+
 
 // TODO: code review this since tiny_MatrixNuNhm1 naming is kind of gross
 typedef Matrix<tinytype, NSTATES, NHORIZON, Eigen::ColMajor> tiny_MatrixNxNh;       // Nu x Nh

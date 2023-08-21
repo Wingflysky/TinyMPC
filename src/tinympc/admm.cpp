@@ -30,9 +30,9 @@ void solve_admm(struct tiny_problem *problem, struct tiny_params *params) {
         update_linear_cost(problem, params);
 
         problem->primal_residual_state = (problem->x - problem->vnew).cwiseAbs().maxCoeff();
-        problem->dual_residual_state = ((problem->v - problem->vnew).cwiseAbs().maxCoeff()) * params->cache.rho;
+        problem->dual_residual_state = (problem->v - problem->vnew).cwiseAbs().maxCoeff() * params->cache.rho;
         problem->primal_residual_input = (problem->u - problem->znew).cwiseAbs().maxCoeff();
-        problem->dual_residual_input = ((problem->z - problem->znew).cwiseAbs().maxCoeff()) * params->cache.rho;
+        problem->dual_residual_input = (problem->z - problem->znew).cwiseAbs().maxCoeff() * params->cache.rho;
 
         // TODO: convert arrays of Eigen vectors into one Eigen matrix
         // Save previous slack variables
