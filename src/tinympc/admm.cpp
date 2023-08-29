@@ -36,28 +36,48 @@ void solve_admm(struct tiny_problem *problem, const struct tiny_params *params) 
     problem->status = 0;
     problem->iter = 0;
 
+    uint64_t totalBackPassTime = 0;
+    uint64_t totalForwardPassTime = 0;
+    uint64_t totalUpdateSlackTime = 0;
+    uint64_t totalUpdateDualTime = 0;
+    uint64_t totalUpdateLinearCostTime = 0;
+
     forward_pass(problem, params);
     update_slack(problem, params);
     update_dual(problem, params);
     update_linear_cost(problem, params);
     for (int i=0; i<problem->max_iter; i++) {
         
-        auto start = high_resolution_clock::now();
 
         // Solve linear system with Riccati and roll out to get new trajectory
-        update_primal(problem, params);
+        // update_primal(problem, params);
+        auto start_back_pass_grad = high_resolution_clock::now();
+        backward_pass_grad(problem, params);
+        auto stop_back_pass_grad = high_resolution_clock::now();
+        auto start_forward_pass = high_resolution_clock::now();
+        forward_pass(problem, params);
+        auto stop_forward_pass = high_resolution_clock::now();
 
         // Project slack variables into feasible domain
+        auto start_update_slack = high_resolution_clock::now();
         update_slack(problem, params);
+        auto stop_update_slack = high_resolution_clock::now();
 
         // Compute next iteration of dual variables
+        auto start_update_dual = high_resolution_clock::now();
         update_dual(problem, params);
+        auto stop_update_dual = high_resolution_clock::now();
 
         // Update linear control cost terms using reference trajectory, duals, and slack variables
+        auto start_update_linear_cost = high_resolution_clock::now();
         update_linear_cost(problem, params);
+        auto stop_update_linear_cost = high_resolution_clock::now();
 
-        auto stop = high_resolution_clock::now();
-        std::cout << duration_cast<nanoseconds>(stop - start).count() << std::endl;
+        totalBackPassTime += duration_cast<nanoseconds>(stop_back_pass_grad - start_back_pass_grad).count();
+        totalForwardPassTime += duration_cast<nanoseconds>(stop_forward_pass - start_forward_pass).count();
+        totalUpdateSlackTime += duration_cast<nanoseconds>(stop_update_slack - start_update_slack).count();
+        totalUpdateDualTime += duration_cast<nanoseconds>(stop_update_dual - start_update_dual).count();
+        totalUpdateLinearCostTime += duration_cast<nanoseconds>(stop_update_linear_cost - start_update_linear_cost).count();
 
         problem->primal_residual_state = (problem->x - problem->vnew).cwiseAbs().maxCoeff();
         problem->dual_residual_state = ((problem->v - problem->vnew).cwiseAbs().maxCoeff()) * params->cache.rho;
@@ -91,6 +111,12 @@ void solve_admm(struct tiny_problem *problem, const struct tiny_params *params) 
         // std::cout << problem->dual_residual_input << "\n" << std::endl;
 
     }
+
+    std::cout << "Average backpass time (ns):\t\t" << totalBackPassTime/problem->iter << std::endl;
+    std::cout << "Average forward time (ns):\t\t" << totalForwardPassTime/problem->iter << std::endl;
+    std::cout << "Average update slack time (ns):\t\t" << totalUpdateSlackTime/problem->iter << std::endl;
+    std::cout << "Average update dual time (ns):\t\t" << totalUpdateDualTime/problem->iter << std::endl;
+    std::cout << "Average update linear cost time (ns):\t" << totalUpdateLinearCostTime/problem->iter << std::endl;
 }
 
 /**
