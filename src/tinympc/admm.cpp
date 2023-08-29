@@ -41,6 +41,9 @@ void solve_admm(struct tiny_problem *problem, const struct tiny_params *params) 
     uint64_t totalUpdateSlackTime = 0;
     uint64_t totalUpdateDualTime = 0;
     uint64_t totalUpdateLinearCostTime = 0;
+    uint64_t overallTime = 0;
+
+    auto start_overall = high_resolution_clock::now();
 
     forward_pass(problem, params);
     update_slack(problem, params);
@@ -79,10 +82,10 @@ void solve_admm(struct tiny_problem *problem, const struct tiny_params *params) 
         totalUpdateDualTime += duration_cast<nanoseconds>(stop_update_dual - start_update_dual).count();
         totalUpdateLinearCostTime += duration_cast<nanoseconds>(stop_update_linear_cost - start_update_linear_cost).count();
 
-        problem->primal_residual_state = (problem->x - problem->vnew).cwiseAbs().maxCoeff();
-        problem->dual_residual_state = ((problem->v - problem->vnew).cwiseAbs().maxCoeff()) * params->cache.rho;
-        problem->primal_residual_input = (problem->u - problem->znew).cwiseAbs().maxCoeff();
-        problem->dual_residual_input = ((problem->z - problem->znew).cwiseAbs().maxCoeff()) * params->cache.rho;
+        // problem->primal_residual_state = (problem->x - problem->vnew).cwiseAbs().maxCoeff();
+        // problem->dual_residual_state = ((problem->v - problem->vnew).cwiseAbs().maxCoeff()) * params->cache.rho;
+        // problem->primal_residual_input = (problem->u - problem->znew).cwiseAbs().maxCoeff();
+        // problem->dual_residual_input = ((problem->z - problem->znew).cwiseAbs().maxCoeff()) * params->cache.rho;
 
         // TODO: convert arrays of Eigen vectors into one Eigen matrix
         // Save previous slack variables
@@ -93,14 +96,14 @@ void solve_admm(struct tiny_problem *problem, const struct tiny_params *params) 
 
         // TODO: remove convergence check and just return when allotted runtime is up
         // Check for convergence
-        if (problem->primal_residual_state < problem->abs_tol &&
-            problem->primal_residual_input < problem->abs_tol &&
-            problem->dual_residual_state < problem->abs_tol &&
-            problem->dual_residual_input < problem->abs_tol)
-        {
-            problem->status = 1;
-            break;
-        }
+        // if (problem->primal_residual_state < problem->abs_tol &&
+        //     problem->primal_residual_input < problem->abs_tol &&
+        //     problem->dual_residual_state < problem->abs_tol &&
+        //     problem->dual_residual_input < problem->abs_tol)
+        // {
+        //     problem->status = 1;
+        //     break;
+        // }
 
         // TODO: add rho scaling
 
@@ -111,12 +114,15 @@ void solve_admm(struct tiny_problem *problem, const struct tiny_params *params) 
         // std::cout << problem->dual_residual_input << "\n" << std::endl;
 
     }
+    auto stop_overall = high_resolution_clock::now();
+    overallTime = duration_cast<nanoseconds>(stop_overall - start_overall).count();
 
     std::cout << "Average backpass time (ns):\t\t" << totalBackPassTime/problem->iter << std::endl;
     std::cout << "Average forward time (ns):\t\t" << totalForwardPassTime/problem->iter << std::endl;
     std::cout << "Average update slack time (ns):\t\t" << totalUpdateSlackTime/problem->iter << std::endl;
     std::cout << "Average update dual time (ns):\t\t" << totalUpdateDualTime/problem->iter << std::endl;
     std::cout << "Average update linear cost time (ns):\t" << totalUpdateLinearCostTime/problem->iter << std::endl;
+    std::cout << "Overall time per iter (ns):\t\t" << overallTime/problem->iter << std::endl;
 }
 
 /**

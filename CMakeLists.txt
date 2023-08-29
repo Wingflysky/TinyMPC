@@ -14,7 +14,7 @@ endif()
 # Set compiler flags
 set(CMAKE_CXX_FLAGS "-Wall -Wextra")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -Wextra -pedantic -march=native -ftree-vectorize")
 
 include_directories(include/Eigen)
 

@@ -30,8 +30,8 @@ int main() {
     params.u_min = tiny_MatrixNuNhm1::Constant(-0.5);
     params.u_max = tiny_MatrixNuNhm1::Constant(0.5);
     for (int i=0; i<NHORIZON; i++) {
-        params.x_min[i] = tiny_VectorNc::Constant(-99999); // Currently unused
-        params.x_max[i] = tiny_VectorNc::Constant(99999);
+        params.x_min[i] = tiny_VectorNc::Constant(-32000); // Currently unused
+        params.x_max[i] = tiny_VectorNc::Constant(32000);
         params.A_constraints[i] = tiny_MatrixNcNx::Zero();
     }
     params.Xref = tiny_MatrixNxNh::Zero();
