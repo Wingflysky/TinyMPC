@@ -57,7 +57,7 @@ void solve_admm(struct tiny_problem *problem, const struct tiny_params *params) 
         update_linear_cost(problem, params);
 
         auto stop = high_resolution_clock::now();
-        std::cout << duration_cast<microseconds>(stop - start).count() << std::endl;
+        std::cout << duration_cast<nanoseconds>(stop - start).count() << std::endl;
 
         problem->primal_residual_state = (problem->x - problem->vnew).cwiseAbs().maxCoeff();
         problem->dual_residual_state = ((problem->v - problem->vnew).cwiseAbs().maxCoeff()) * params->cache.rho;
