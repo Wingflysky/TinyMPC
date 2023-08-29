@@ -1,7 +1,7 @@
 #include <iostream>
 
 #include <tinympc/admm.hpp>
-#include "problem_data/quadrotor_100hz_params.hpp"
+#include "problem_data/quadrotor_100hz_params_fixedpt.hpp"
 // #include "trajectory_data/quadrotor_100hz_ref_hover.hpp"
 
 using Eigen::Matrix;
