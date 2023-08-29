@@ -10,7 +10,7 @@ using Eigen::DiagonalMatrix;
 extern "C" {
 #endif
 
-typedef float tinytype;
+typedef int32_t tinytype;
 
 typedef Matrix<tinytype, NSTATES, 1> tiny_VectorNx;
 typedef Matrix<tinytype, NINPUTS, 1> tiny_VectorNu;
