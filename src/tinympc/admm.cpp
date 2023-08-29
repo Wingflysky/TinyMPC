@@ -1,13 +1,14 @@
 #include <iostream>
-
+#include <chrono>
 #include "admm.hpp"
 
 #define DEBUG_MODULE "TINYALG"
 
+using namespace std::chrono;
+
 extern "C" {
 
-#include "debug.h"
-
+// #include "debug.h"
 static uint64_t startTimestamp;
 
 void multAdyn(tiny_VectorNx &Ax, const tiny_MatrixNxNx &A, const tiny_VectorNx &x) {
@@ -29,17 +30,19 @@ void solve_lqr(struct tiny_problem *problem, const struct tiny_params *params) {
     problem->u.col(0) = -params->cache.Kinf * (problem->x.col(0) - params->Xref.col(0));
 }
 
-
 void solve_admm(struct tiny_problem *problem, const struct tiny_params *params) {
 
+    
     problem->status = 0;
-    problem->iter = 1;
+    problem->iter = 0;
 
     forward_pass(problem, params);
     update_slack(problem, params);
     update_dual(problem, params);
     update_linear_cost(problem, params);
     for (int i=0; i<problem->max_iter; i++) {
+        
+        auto start = high_resolution_clock::now();
 
         // Solve linear system with Riccati and roll out to get new trajectory
         update_primal(problem, params);
@@ -53,35 +56,40 @@ void solve_admm(struct tiny_problem *problem, const struct tiny_params *params) 
         // Update linear control cost terms using reference trajectory, duals, and slack variables
         update_linear_cost(problem, params);
 
-        // problem->primal_residual_state = (problem->x - problem->vnew).cwiseAbs().maxCoeff();
-        // problem->dual_residual_state = ((problem->v - problem->vnew).cwiseAbs().maxCoeff()) * params->cache.rho;
-        // problem->primal_residual_input = (problem->u - problem->znew).cwiseAbs().maxCoeff();
-        // problem->dual_residual_input = ((problem->z - problem->znew).cwiseAbs().maxCoeff()) * params->cache.rho;
+        auto stop = high_resolution_clock::now();
+        std::cout << duration_cast<microseconds>(stop - start).count() << std::endl;
+
+        problem->primal_residual_state = (problem->x - problem->vnew).cwiseAbs().maxCoeff();
+        problem->dual_residual_state = ((problem->v - problem->vnew).cwiseAbs().maxCoeff()) * params->cache.rho;
+        problem->primal_residual_input = (problem->u - problem->znew).cwiseAbs().maxCoeff();
+        problem->dual_residual_input = ((problem->z - problem->znew).cwiseAbs().maxCoeff()) * params->cache.rho;
 
         // TODO: convert arrays of Eigen vectors into one Eigen matrix
         // Save previous slack variables
         problem->v = problem->vnew;
         problem->z = problem->znew;
 
+        problem->iter += 1;
+
         // TODO: remove convergence check and just return when allotted runtime is up
         // Check for convergence
-        // if (problem->primal_residual_state < problem->abs_tol &&
-        //     problem->primal_residual_input < problem->abs_tol &&
-        //     problem->dual_residual_state < problem->abs_tol &&
-        //     problem->dual_residual_input < problem->abs_tol)
-        // {
-        //     problem->status = 1;
-        //     break;
-        // }
+        if (problem->primal_residual_state < problem->abs_tol &&
+            problem->primal_residual_input < problem->abs_tol &&
+            problem->dual_residual_state < problem->abs_tol &&
+            problem->dual_residual_input < problem->abs_tol)
+        {
+            problem->status = 1;
+            break;
+        }
 
         // TODO: add rho scaling
 
-        problem->iter += 1;
 
         // std::cout << problem->primal_residual_state << std::endl;
         // std::cout << problem->dual_residual_state << std::endl;
         // std::cout << problem->primal_residual_input << std::endl;
         // std::cout << problem->dual_residual_input << "\n" << std::endl;
+
     }
 }
 

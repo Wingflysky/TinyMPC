@@ -1,7 +1,7 @@
 #include <iostream>
 
 #include <tinympc/admm.hpp>
-#include "problem_data/quadrotor_20hz_params.hpp"
+#include "problem_data/quadrotor_100hz_params.hpp"
 #include "trajectory_data/quadrotor_100hz_ref_hover.hpp"
 
 using Eigen::Matrix;
@@ -31,7 +31,7 @@ int main() {
     params.u_max = tiny_MatrixNuNhm1::Constant(0.5);
     for (int i=0; i<NHORIZON; i++) {
         params.x_min[i] = tiny_VectorNc::Constant(-99999); // Currently unused
-        params.x_max[i] = tiny_VectorNc::Zero();
+        params.x_max[i] = tiny_VectorNc::Constant(99999);
         params.A_constraints[i] = tiny_MatrixNcNx::Zero();
     }
     params.Xref = tiny_MatrixNxNh::Zero();
@@ -67,77 +67,15 @@ int main() {
     // Matrix<tinytype, NSTATES, NTOTAL, Eigen::ColMajor> Xref_total = Eigen::Map<Matrix<tinytype, NTOTAL, NSTATES, Eigen::RowMajor>>(Xref_data).transpose();
     Matrix<tinytype, NSTATES, 1> Xref_origin;
     Xref_origin << 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0;
-
-    // params.Xref = Xref_total.block<NSTATES, NHORIZON>(0,0);
     params.Xref = Xref_origin.replicate<1,NHORIZON>();
-    // problem.x.col(0) = params.Xref.col(0);
     problem.x.col(0) << 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
-
-    std::cout << params.Xref << std::endl;
 
     solve_admm(&problem, &params);
     std::cout << problem.iter << std::endl;
-    std::cout << problem.u.col(0)(0) << std::endl;
-    std::cout << problem.u.col(0)(1) << std::endl;
-    std::cout << problem.u.col(0)(2) << std::endl;
-    std::cout << problem.u.col(0)(3) << std::endl;
-
-    // Matrix<tinytype, 3, 1> obstacle_center = {0.0, 2.0, 0.5};
-    // tinytype obstacle_velocity = 1 * DT;
-
-
-    // std::cout << params.u_max << std::endl;
-
-    params.Xref = Xref_total.block<NSTATES, NHORIZON>(0,0);
-    // problem.x.col(0) = params.Xref.col(0);
-    // tinytype r_obstacle = 0.75;
-    // tinytype b;
-    // Matrix<tinytype, 3, 1> xc;
-    // Matrix<tinytype, 3, 1> a;
-    // Matrix<tinytype, 3, 1> q_c;
-    // for (int i=0; i<NHORIZON; i++) {
-    //     xc = obstacle_center - params.Xref.col(i).head(3);
-    //     a = xc/norm(xc);
-    //     params.A_constraints[i].head(3) = a.transpose();
-
-    //     q_c = obstacle_center - r_obstacle*a;
-    //     b = a.transpose() * q_c;
-    //     params.x_max[i](0) = b;
-    //     // std::cout << params.A_constraints[i].head(3) << std::endl;
-    //     // std::cout << params.x_max[i](0) << "\n" << std::endl;
-    // }
-
-
-    //     q_c = obstacle_center - r_obstacle*a;
-    //     b = a.transpose() * q_c;
-    //     params.x_max[i](0) = b;
-    //     // std::cout << params.A_constraints[i].head(3) << std::endl;
-    //     // std::cout << params.x_max[i](0) << "\n" << std::endl;
-    // }
-    // std::cout << params.Xref << std::endl;
-    // std::cout << params.Q << std::endl;
-    // problem.q = params.Xref.array().colwise() * params.Q.array();
-    // std::cout << problem.q << std::endl;
-
-    // std::cout << NHORIZON << std::endl;
-    // std::cout << params.u_min << std::endl;
-    // std::cout << params.u_max << std::endl;
-    // for (int i=0; i<NHORIZON; i++) {
-    //     std::cout << params.A_constraints[i] << std::endl;
-    //     std::cout << params.x_min[i] << std::endl;
-    //     std::cout << params.x_max[i] << std::endl;
-    // }
-
-    // std::cout << params.Xref << std::endl;
-    // std::cout << params.Uref << std::endl;
-    // std::cout << params.cache.Adyn << std::endl;
-    // std::cout << params.cache.Bdyn << std::endl;
-    // std::cout << params.cache.rho << std::endl;
-    // std::cout << params.cache.Kinf << std::endl;
-    // std::cout << params.cache.Pinf << std::endl;
-    // std::cout << params.cache.Quu_inv << std::endl;
-    // std::cout << params.cache.AmBKt << std::endl;
-    // std::cout << params.cache.coeff_d2p << std::endl;
+    // std::cout << problem.u.col(0)(0) << std::endl;
+    // std::cout << problem.u.col(0)(1) << std::endl;
+    // std::cout << problem.u.col(0)(2) << std::endl;
+    // std::cout << problem.u.col(0)(3) << std::endl;
 
     return 0;
 }
