@@ -2,11 +2,11 @@
 
 #include <tinympc/admm.hpp>
 #include "problem_data/quadrotor_100hz_params.hpp"
-#include "trajectory_data/quadrotor_100hz_ref_hover.hpp"
+// #include "trajectory_data/quadrotor_100hz_ref_hover.hpp"
 
 using Eigen::Matrix;
 
-#define DT 1/100
+#define FREQ 100
 
 extern "C" {
 
@@ -70,8 +70,12 @@ int main() {
     params.Xref = Xref_origin.replicate<1,NHORIZON>();
     problem.x.col(0) << 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
+    std::cout << "tinytype:\t" << typeid(tinytype).name() << std::endl;
+    std::cout << "Horizon length:\t" << NHORIZON << std::endl;
+    std::cout << "Frequency:\t" << FREQ << std::endl;
+    std::cout << "rho:\t\t" << cache.rho << std::endl;
     solve_admm(&problem, &params);
-    std::cout << problem.iter << std::endl;
+    std::cout << "Iterations: " << problem.iter << std::endl;
     // std::cout << problem.u.col(0)(0) << std::endl;
     // std::cout << problem.u.col(0)(1) << std::endl;
     // std::cout << problem.u.col(0)(2) << std::endl;
