@@ -112,6 +112,7 @@ void julia_sim_wrapper_solve_lqr(float x[12][10], float u[4][9]){
 
     solve_lqr(&problem, &params);
     Eigen::Map<tiny_MatrixNuNhm1>(&u[0][0], Nu, Nh-1) = problem.u;
+    Eigen::Map<tiny_MatrixNxNh>(&x[0][0], Nx+1, Nh) = problem.x;
 
     // std::cout << problem.iter << std::endl;
     std::cout << "LQR RESULTS ";
@@ -200,6 +201,7 @@ void julia_sim_wrapper_solve_admm(float x[12][10], float u[4][9]){
 
     solve_admm(&problem, &params);
     Eigen::Map<tiny_MatrixNuNhm1>(&u[0][0], Nu, Nh-1) = problem.u;
+    Eigen::Map<tiny_MatrixNxNh>(&x[0][0], Nx, Nh) = problem.x;
 
     std::cout << "ADMM RESULTS ";
     std::cout << problem.iter << std::endl;
