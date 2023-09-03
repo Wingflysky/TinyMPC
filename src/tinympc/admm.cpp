@@ -3,7 +3,7 @@
 #include "admm.hpp"
 
 #include <tinympc/admm.hpp>
-#include "problem_data/quadrotor_50hz_params_3.hpp"
+#include "problem_data/quadrotor_50hz_params.hpp"
 #include "trajectory_data/quadrotor_50hz_line_5s.hpp"
 
 using Eigen::Matrix;
@@ -147,12 +147,12 @@ void julia_sim_wrapper_solve_admm(float x[NSTATES][NHORIZON], float u[NINPUTS][N
     for (int i=0; i<NHORIZON; i++) {
         params.x_min[i] = tiny_VectorNc::Constant(-1000); // Currently unused
         // params.x_max[i] = tiny_VectorNc::Zero();
-        // params.x_max[i] = tiny_VectorNc::Constant(1000);
-        params.x_max[i](0) = x_max_given[i];
-        // params.A_constraints[i] = tiny_MatrixNcNx::Zero();
-        for (int j=0; j<3; j++) {
-            params.A_constraints[i](j) = A_ineq_given[j][i];
-        }
+        params.x_max[i] = tiny_VectorNc::Constant(1000);
+        // params.x_max[i](0) = x_max_given[i];
+        params.A_constraints[i] = tiny_MatrixNcNx::Zero();
+        // for (int j=0; j<3; j++) {
+        //     params.A_constraints[i](j) = A_ineq_given[j][i];
+        // }
     }
     params.Xref = tiny_MatrixNxNh::Zero();
     params.Uref = tiny_MatrixNuNhm1::Zero();
@@ -180,7 +180,7 @@ void julia_sim_wrapper_solve_admm(float x[NSTATES][NHORIZON], float u[NINPUTS][N
     problem.abs_tol = 0.001;
     problem.status = 0;
     problem.iter = 0;
-    problem.max_iter = 10;
+    problem.max_iter = 200;
     problem.iters_check_rho_update = 10;
 
     // Copy reference trajectory into Eigen matrix
@@ -203,9 +203,29 @@ void julia_sim_wrapper_solve_admm(float x[NSTATES][NHORIZON], float u[NINPUTS][N
 
     // std::cout << params.Xref << std::endl;
 
+
+    Eigen::Matrix<tinytype, 3, 1> obs_center;
+    obs_center << 0, 0, .8;
+    float r_obs = .5;
+
+    Eigen::Matrix<tinytype, 3, 1> xc;
+    Eigen::Matrix<tinytype, 3, 1> a_norm;
+    Eigen::Matrix<tinytype, 3, 1> q_c;
+
+    // Update constraint parameters
+    for (int i=0; i<NHORIZON; i++) {
+        xc = obs_center - problem.x.col(i).head(3);
+        a_norm = xc / xc.norm();
+        // params.A_constraints[i].block<1, 3>(0, 0) = a_norm.transpose();
+        params.A_constraints[i].head(3) = a_norm.transpose();
+        q_c = obs_center - r_obs*a_norm;
+        params.x_max[i](0) = a_norm.transpose() * q_c;
+    }
+
     solve_admm(&problem, &params);
     Eigen::Map<tiny_MatrixNuNhm1>(&u[0][0], NINPUTS, NHORIZON-1) = problem.u;
     Eigen::Map<tiny_MatrixNxNh>(&x[0][0], NSTATES, NHORIZON) = problem.x;
+    Eigen::Map<Eigen::Matrix<tinytype, 3, NHORIZON>>(&A_ineq_given[0][0], 3, NHORIZON) = problem.xyz_news;
 
     // std::cout << "ADMM RESULTS ";
     // std::cout << problem.iter << std::endl;
@@ -344,11 +364,14 @@ void update_slack(struct tiny_problem *problem, const struct tiny_params *params
             problem->xyz_new = problem->xg.col(i).head(3) - problem->dist*params->A_constraints[i].head(3).transpose();
             problem->vnew.col(i) << problem->xyz_new, problem->xg.col(i).tail(NSTATES-3);
 
-            if (i == NHORIZON-1) {
-                std::cout << "prev xyz: "   << problem->xg.col(i).head(3)   << std::endl;
-                std::cout << "vnew: "       << problem->vnew.col(i).head(3) << std::endl;
-            }
+            // if (i == NHORIZON-1) {
+            // if (i == 0) {
+            //     std::cout << "prev xyz: "   << problem->x.col(i).head(3)   << std::endl;
+            //     std::cout << "vnew: "       << problem->vnew.col(i).head(3) << std::endl;
+            // }
         }
+        
+        problem->xyz_news.col(i) = problem->xg.col(i).head(3) - problem->dist*params->A_constraints[i].head(3).transpose();
     }
     // DEBUG_PRINT("slack: %d\n", usecTimestamp() - startTimestamp);
 }
