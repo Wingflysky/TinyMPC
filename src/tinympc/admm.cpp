@@ -3,12 +3,10 @@
 #include "admm.hpp"
 
 #include <tinympc/admm.hpp>
-#include "/Users/anoushkaalavill/Documents/REx_Lab/TinyMPC/examples/problem_data/quadrotor_20hz_params.hpp"
-#include "/Users/anoushkaalavill/Documents/REx_Lab/TinyMPC/examples/trajectory_data/quadrotor_100hz_ref_hover.hpp"
+#include "problem_data/quadrotor_50hz_params_3.hpp"
+#include "trajectory_data/quadrotor_50hz_line_5s.hpp"
 
 using Eigen::Matrix;
-
-#define DT 1/100
 
 #define DEBUG_MODULE "TINYALG"
 
@@ -127,7 +125,7 @@ void solve_lqr(struct tiny_problem *problem, const struct tiny_params *params) {
     problem->u.col(0) = -params->cache.Kinf * (problem->x.col(0) - params->Xref.col(0));
 }
 
-void julia_sim_wrapper_solve_admm(float x[12][10], float u[4][9]){
+void julia_sim_wrapper_solve_admm(float x[NSTATES][NHORIZON], float u[NINPUTS][NHORIZON-1], int mpc_iter, float x_max_given[NHORIZON], float A_ineq_given[3][NHORIZON]){
     // Copy data from problem_data/quadrotor*.hpp
     struct tiny_cache cache;
     cache.Adyn = Eigen::Map<Matrix<tinytype, NSTATES, NSTATES, Eigen::RowMajor>>(Adyn_data);
@@ -143,12 +141,18 @@ void julia_sim_wrapper_solve_admm(float x[12][10], float u[4][9]){
     params.Q = Eigen::Map<tiny_VectorNx>(Q_data);
     params.Qf = Eigen::Map<tiny_VectorNx>(Qf_data);
     params.R = Eigen::Map<tiny_VectorNu>(R_data);
-    params.u_min = tiny_MatrixNuNhm1::Constant(-0.5);
-    params.u_max = tiny_MatrixNuNhm1::Constant(0.5);
+    tinytype u_hover[4] = {.65, .65, .65, .65};
+    params.u_min = tiny_VectorNu(-u_hover[0], -u_hover[1], -u_hover[2], -u_hover[3]).replicate<1, NHORIZON-1>();
+    params.u_max = tiny_VectorNu(1 - u_hover[0], 1 - u_hover[1], 1 - u_hover[2], 1 - u_hover[3]).replicate<1, NHORIZON-1>();
     for (int i=0; i<NHORIZON; i++) {
-        params.x_min[i] = tiny_VectorNc::Constant(-99999); // Currently unused
-        params.x_max[i] = tiny_VectorNc::Zero();
-        params.A_constraints[i] = tiny_MatrixNcNx::Zero();
+        params.x_min[i] = tiny_VectorNc::Constant(-1000); // Currently unused
+        // params.x_max[i] = tiny_VectorNc::Zero();
+        // params.x_max[i] = tiny_VectorNc::Constant(1000);
+        params.x_max[i](0) = x_max_given[i];
+        // params.A_constraints[i] = tiny_MatrixNcNx::Zero();
+        for (int j=0; j<3; j++) {
+            params.A_constraints[i](j) = A_ineq_given[j][i];
+        }
     }
     params.Xref = tiny_MatrixNxNh::Zero();
     params.Uref = tiny_MatrixNuNhm1::Zero();
@@ -176,39 +180,39 @@ void julia_sim_wrapper_solve_admm(float x[12][10], float u[4][9]){
     problem.abs_tol = 0.001;
     problem.status = 0;
     problem.iter = 0;
-    problem.max_iter = 100;
+    problem.max_iter = 10;
     problem.iters_check_rho_update = 10;
 
     // Copy reference trajectory into Eigen matrix
-    // Matrix<tinytype, NSTATES, NTOTAL, Eigen::ColMajor> Xref_total = Eigen::Map<Matrix<tinytype, NTOTAL, NSTATES, Eigen::RowMajor>>(Xref_data).transpose();
+    Matrix<tinytype, NSTATES, NTOTAL, Eigen::ColMajor> Xref_total = Eigen::Map<Matrix<tinytype, NTOTAL, NSTATES, Eigen::RowMajor>>(Xref_data).transpose();
     Matrix<tinytype, NSTATES, 1> Xref_origin;
-    Xref_origin << 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+    Xref_origin << Xref_total.col(0).head(3), 0, 0, 0, 0, 0, 0, 0, 0, 0; // Go to xyz start of traj
 
-    // params.Xref = Xref_total.block<NSTATES, NHORIZON>(0,0);
-    params.Xref = Xref_origin.replicate<1,NHORIZON>();
+    params.Xref = Xref_total.block<NSTATES, NHORIZON>(0, mpc_iter);
+    // params.Xref = Xref_origin.replicate<1,NHORIZON>();
     // problem.x.col(0) = params.Xref.col(0);
-    problem.x.col(0) << 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+    // problem.x.col(0) << 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
-    int Nx = 12;
-    int Nh = 10;
-    int Nu = 4;
-    Eigen::Map<tiny_MatrixNxNh> problem_x(&x[0][0], Nx, Nh);
+    // int Nx = 12;
+    // int Nh = 25;
+    // int Nu = 4;
+    Eigen::Map<tiny_MatrixNxNh> problem_x(&x[0][0], NSTATES, NHORIZON);
     problem.x = problem_x;
-    Eigen::Map<tiny_MatrixNuNhm1> problem_u(&u[0][0], Nu, Nh-1);
+    Eigen::Map<tiny_MatrixNuNhm1> problem_u(&u[0][0], NINPUTS, NHORIZON-1);
     problem.u = problem_u;
 
     // std::cout << params.Xref << std::endl;
 
     solve_admm(&problem, &params);
-    Eigen::Map<tiny_MatrixNuNhm1>(&u[0][0], Nu, Nh-1) = problem.u;
-    Eigen::Map<tiny_MatrixNxNh>(&x[0][0], Nx, Nh) = problem.x;
+    Eigen::Map<tiny_MatrixNuNhm1>(&u[0][0], NINPUTS, NHORIZON-1) = problem.u;
+    Eigen::Map<tiny_MatrixNxNh>(&x[0][0], NSTATES, NHORIZON) = problem.x;
 
-    std::cout << "ADMM RESULTS ";
-    std::cout << problem.iter << std::endl;
-    std::cout << problem.u.col(0)(0) << " ";
-    std::cout << problem.u.col(0)(1) << " ";
-    std::cout << problem.u.col(0)(2) << " ";
-    std::cout << problem.u.col(0)(3) << std::endl;
+    // std::cout << "ADMM RESULTS ";
+    // std::cout << problem.iter << std::endl;
+    // std::cout << problem.u.col(0)(0) << " ";
+    // std::cout << problem.u.col(0)(1) << " ";
+    // std::cout << problem.u.col(0)(2) << " ";
+    // std::cout << problem.u.col(0)(3) << std::endl;
 
 }
 
@@ -339,6 +343,11 @@ void update_slack(struct tiny_problem *problem, const struct tiny_params *params
         else {
             problem->xyz_new = problem->xg.col(i).head(3) - problem->dist*params->A_constraints[i].head(3).transpose();
             problem->vnew.col(i) << problem->xyz_new, problem->xg.col(i).tail(NSTATES-3);
+
+            if (i == NHORIZON-1) {
+                std::cout << "prev xyz: "   << problem->xg.col(i).head(3)   << std::endl;
+                std::cout << "vnew: "       << problem->vnew.col(i).head(3) << std::endl;
+            }
         }
     }
     // DEBUG_PRINT("slack: %d\n", usecTimestamp() - startTimestamp);
@@ -362,7 +371,8 @@ void update_linear_cost(struct tiny_problem *problem, const struct tiny_params *
     problem->r = -params->cache.rho * (problem->znew - problem->y);
     problem->q = -(params->Xref.array().colwise() * params->Q.array());
     problem->q -= params->cache.rho * (problem->vnew - problem->g);
-    problem->p.col(NHORIZON-1) = -(params->Xref.col(NHORIZON-1).array().colwise() * params->Qf.array());
+    // problem->p.col(NHORIZON-1) = -(params->Xref.col(NHORIZON-1).array().colwise() * params->Qf.array());
+    problem->p.col(NHORIZON-1) = -(params->Xref.col(NHORIZON-1).transpose().lazyProduct(params->cache.Pinf));
     problem->p.col(NHORIZON-1) -= params->cache.rho * (problem->vnew.col(NHORIZON-1) - problem->g.col(NHORIZON-1));
 
     // for (int i=0; i<NHORIZON-1; i++) {
