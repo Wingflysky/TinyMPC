@@ -3,7 +3,8 @@
 #include "admm.hpp"
 
 #include <tinympc/admm.hpp>
-#include "problem_data/quadrotor_50hz_params.hpp"
+// #include "problem_data/quadrotor_50hz_params.hpp"
+#include "problem_data/quadrotor_50hz_params_3.hpp"
 #include "trajectory_data/quadrotor_50hz_line_5s.hpp"
 // #include "trajectory_data/quadrotor_50hz_line_9s.hpp"
 
@@ -182,7 +183,6 @@ void julia_sim_wrapper_solve_admm(float x[NSTATES][NHORIZON], float u[NINPUTS][N
     problem.status = 0;
     problem.iter = 0;
     problem.max_iter = 20;
-    problem.iters_check_rho_update = 10;
 
     // Copy reference trajectory into Eigen matrix
     Matrix<tinytype, NSTATES, NTOTAL, Eigen::ColMajor> Xref_total = Eigen::Map<Matrix<tinytype, NTOTAL, NSTATES, Eigen::RowMajor>>(Xref_data).transpose();
@@ -227,14 +227,6 @@ void julia_sim_wrapper_solve_admm(float x[NSTATES][NHORIZON], float u[NINPUTS][N
     Eigen::Map<tiny_MatrixNuNhm1>(&u[0][0], NINPUTS, NHORIZON-1) = problem.u;
     Eigen::Map<tiny_MatrixNxNh>(&x[0][0], NSTATES, NHORIZON) = problem.x;
     Eigen::Map<Eigen::Matrix<tinytype, 3, NHORIZON>>(&A_ineq_given[0][0], 3, NHORIZON) = problem.xyz_news;
-
-    // std::cout << "ADMM RESULTS ";
-    // std::cout << problem.iter << std::endl;
-    // std::cout << problem.u.col(0)(0) << " ";
-    // std::cout << problem.u.col(0)(1) << " ";
-    // std::cout << problem.u.col(0)(2) << " ";
-    // std::cout << problem.u.col(0)(3) << std::endl;
-
 }
 
 void solve_admm(struct tiny_problem *problem, const struct tiny_params *params) {

@@ -5,4 +5,4 @@
 #define NSTATE_CONSTRAINTS 1
 
 #define NHORIZON 25
-#define NTOTAL 1501
+#define NTOTAL 251
