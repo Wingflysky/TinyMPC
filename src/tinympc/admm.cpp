@@ -5,6 +5,7 @@
 #include <tinympc/admm.hpp>
 #include "problem_data/quadrotor_50hz_params.hpp"
 #include "trajectory_data/quadrotor_50hz_line_5s.hpp"
+// #include "trajectory_data/quadrotor_50hz_line_9s.hpp"
 
 using Eigen::Matrix;
 
@@ -180,7 +181,7 @@ void julia_sim_wrapper_solve_admm(float x[NSTATES][NHORIZON], float u[NINPUTS][N
     problem.abs_tol = 0.001;
     problem.status = 0;
     problem.iter = 0;
-    problem.max_iter = 200;
+    problem.max_iter = 20;
     problem.iters_check_rho_update = 10;
 
     // Copy reference trajectory into Eigen matrix
