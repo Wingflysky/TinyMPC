@@ -4,8 +4,9 @@
 
 #include <tinympc/admm.hpp>
 // #include "problem_data/quadrotor_50hz_params.hpp"
-#include "problem_data/quadrotor_50hz_params_3.hpp"
-#include "problem_data/quadrotor_50hz_params_constraints.hpp"
+// #include "problem_data/quadrotor_50hz_params_3.hpp"
+#include "problem_data/quadrotor_50hz_params_unconstrained.hpp"
+#include "problem_data/quadrotor_50hz_params_constrained.hpp"
 #include "trajectory_data/quadrotor_50hz_line_5s.hpp"
 // #include "trajectory_data/quadrotor_50hz_line_9s.hpp"
 
@@ -37,9 +38,9 @@ void julia_sim_wrapper_solve_lqr(float x[12][10], float u[4][9]){
     cache.coeff_d2p[0] = Eigen::Map<Matrix<tinytype, NSTATES, NINPUTS, Eigen::RowMajor>>(coeff_d2p_data);
 
     struct tiny_params params;
-    params.Q = Eigen::Map<tiny_VectorNx>(Q_data);
-    params.Qf = Eigen::Map<tiny_VectorNx>(Qf_data);
-    params.R = Eigen::Map<tiny_VectorNu>(R_data);
+    params.Q[0] = Eigen::Map<tiny_VectorNx>(Q_data);
+    params.Qf[0] = Eigen::Map<tiny_VectorNx>(Qf_data);
+    params.R[0] = Eigen::Map<tiny_VectorNu>(R_data);
     params.u_min = tiny_MatrixNuNhm1::Constant(-0.5);
     params.u_max = tiny_MatrixNuNhm1::Constant(0.5);
     for (int i=0; i<NHORIZON; i++) {
@@ -75,6 +76,7 @@ void julia_sim_wrapper_solve_lqr(float x[12][10], float u[4][9]){
     problem.iter = 0;
     problem.max_iter = 100;
     problem.iters_check_rho_update = 10;
+    problem.cache_level = 0; // 0 to use rho corresponding to inactive constraints (1 to use rho corresponding to active constraints)
 
     // Copy reference trajectory into Eigen matrix
     // Matrix<tinytype, NSTATES, NTOTAL, Eigen::ColMajor> Xref_total = Eigen::Map<Matrix<tinytype, NTOTAL, NSTATES, Eigen::RowMajor>>(Xref_data).transpose();
@@ -133,17 +135,20 @@ void julia_sim_wrapper_solve_admm(float x[NSTATES][NHORIZON], float u[NINPUTS][N
 
     cache.Adyn[1] = Eigen::Map<Matrix<tinytype, NSTATES, NSTATES, Eigen::RowMajor>>(Adyn_data);
     cache.Bdyn[1] = Eigen::Map<Matrix<tinytype, NSTATES, NINPUTS, Eigen::RowMajor>>(Bdyn_data);
-    cache.rho[1] = rho_constraint_value;
-    cache.Kinf[1] = Eigen::Map<Matrix<tinytype, NINPUTS, NSTATES, Eigen::RowMajor>>(Kinf_constraint_data);
-    cache.Pinf[1] = Eigen::Map<Matrix<tinytype, NSTATES, NSTATES, Eigen::RowMajor>>(Pinf_constraint_data);
-    cache.Quu_inv[1] = Eigen::Map<Matrix<tinytype, NINPUTS, NINPUTS, Eigen::RowMajor>>(Quu_inv_constraint_data);
-    cache.AmBKt[1] = Eigen::Map<Matrix<tinytype, NSTATES, NSTATES, Eigen::RowMajor>>(AmBKt_constraint_data);
-    cache.coeff_d2p[1] = Eigen::Map<Matrix<tinytype, NSTATES, NINPUTS, Eigen::RowMajor>>(coeff_d2p_constraint_data);
+    cache.rho[1] = rho_constrained_value;
+    cache.Kinf[1] = Eigen::Map<Matrix<tinytype, NINPUTS, NSTATES, Eigen::RowMajor>>(Kinf_constrained_data);
+    cache.Pinf[1] = Eigen::Map<Matrix<tinytype, NSTATES, NSTATES, Eigen::RowMajor>>(Pinf_constrained_data);
+    cache.Quu_inv[1] = Eigen::Map<Matrix<tinytype, NINPUTS, NINPUTS, Eigen::RowMajor>>(Quu_inv_constrained_data);
+    cache.AmBKt[1] = Eigen::Map<Matrix<tinytype, NSTATES, NSTATES, Eigen::RowMajor>>(AmBKt_constrained_data);
+    cache.coeff_d2p[1] = Eigen::Map<Matrix<tinytype, NSTATES, NINPUTS, Eigen::RowMajor>>(coeff_d2p_constrained_data);
 
     struct tiny_params params;
-    params.Q = Eigen::Map<tiny_VectorNx>(Q_data);
-    params.Qf = Eigen::Map<tiny_VectorNx>(Qf_data);
-    params.R = Eigen::Map<tiny_VectorNu>(R_data);
+    params.Q[0] = Eigen::Map<tiny_VectorNx>(Q_data);
+    params.Qf[0] = Eigen::Map<tiny_VectorNx>(Qf_data);
+    params.R[0] = Eigen::Map<tiny_VectorNu>(R_data);
+    params.Q[1] = Eigen::Map<tiny_VectorNx>(Q_constrained_data);
+    params.Qf[1] = Eigen::Map<tiny_VectorNx>(Qf_constrained_data);
+    params.R[1] = Eigen::Map<tiny_VectorNu>(R_constrained_data);
     tinytype u_hover[4] = {.65, .65, .65, .65};
     params.u_min = tiny_VectorNu(-u_hover[0], -u_hover[1], -u_hover[2], -u_hover[3]).replicate<1, NHORIZON-1>();
     params.u_max = tiny_VectorNu(1 - u_hover[0], 1 - u_hover[1], 1 - u_hover[2], 1 - u_hover[3]).replicate<1, NHORIZON-1>();
@@ -226,6 +231,10 @@ void julia_sim_wrapper_solve_admm(float x[NSTATES][NHORIZON], float u[NINPUTS][N
     }
 
     solve_admm(&problem, &params);
+
+    // std::cout << "done" << std::endl;
+    // std::cout << problem.iter << std::endl;
+
     Eigen::Map<tiny_MatrixNuNhm1>(&u[0][0], NINPUTS, NHORIZON-1) = problem.u;
     Eigen::Map<tiny_MatrixNxNh>(&x[0][0], NSTATES, NHORIZON) = problem.x;
     Eigen::Map<Eigen::Matrix<tinytype, 3, NHORIZON>>(&A_ineq_given[0][0], 3, NHORIZON) = problem.xyz_news;
@@ -385,6 +394,7 @@ void update_slack(struct tiny_problem *problem, const struct tiny_params *params
     for (int i=0; i<NHORIZON; i++) {
         problem->dist = (params->A_constraints[i].head(3)).lazyProduct(problem->xg.col(i).head(3)); // Distances can be computed in one step outside the for loop
         problem->dist -= params->x_max[i](0);
+        problem->xyz_news.col(i) = problem->xg.col(i).head(3) - problem->dist*params->A_constraints[i].head(3).transpose();
         // DEBUG_PRINT("dist: %f\n", dist);
         if (problem->dist <= 0) {
             problem->vnew.col(i) = problem->xg.col(i);
@@ -412,9 +422,9 @@ void update_dual(struct tiny_problem *problem, const struct tiny_params *params)
  * slack and dual variables from ADMM
 */
 void update_linear_cost(struct tiny_problem *problem, const struct tiny_params *params) {
-    // problem->r = -(params->Uref.array().colwise() * params->R.array()); // Uref = 0 so commented out for speed up. Need to uncomment if using Uref
+    // problem->r = -(params->Uref.array().colwise() * params->R[problem->cache_level].array()); // Uref = 0 so commented out for speed up. Need to uncomment if using Uref
     problem->r = -params->cache.rho[problem->cache_level] * (problem->znew - problem->y);
-    problem->q = -(params->Xref.array().colwise() * params->Q.array());
+    problem->q = -(params->Xref.array().colwise() * params->Q[problem->cache_level].array());
     problem->q -= params->cache.rho[problem->cache_level] * (problem->vnew - problem->g);
     // problem->p.col(NHORIZON-1) = -(params->Xref.col(NHORIZON-1).array().colwise() * params->Qf.array());
     problem->p.col(NHORIZON-1) = -(params->Xref.col(NHORIZON-1).transpose().lazyProduct(params->cache.Pinf[problem->cache_level]));
