@@ -115,6 +115,8 @@ struct tiny_problem {
     Matrix<tinytype, 3, NHORIZON> xyz_news;
     tiny_VectorNu Qu;
     tiny_VectorNx Ax; // Stores result of sparse Adyn*x vector product computation
+
+    int cache_level;
 };
 
 #ifdef __cplusplus

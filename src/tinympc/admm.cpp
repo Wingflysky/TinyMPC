@@ -19,21 +19,6 @@ extern "C" {
 
 static uint64_t startTimestamp;
 
-void multAdyn(tiny_VectorNx &Ax, const tiny_MatrixNxNx &A, const tiny_VectorNx &x) {
-    Ax(0) = (x(0) + A(0,4)*x(4) + A(0,6)*x(6) + A(0,10)*x(10));
-    Ax(1) = (x(1) + A(1,3)*x(3) + A(1,7)*x(7) + A(1,9)*x(9));
-    Ax(2) = x(2) + A(2,8)*x(8);
-    Ax(3) = x(3) + A(3,9)*x(9);
-    Ax(4) = x(4) + A(4,10)*x(10);
-    Ax(5) = x(5) + A(5,11)*x(11);
-    Ax(6) = (x(6) + A(6,4)*x(4) + A(6,10)*x(10));
-    Ax(7) = (x(7) + A(7,3)*x(3) + A(7,9)*x(9));
-    Ax(8) = x(8);
-    Ax(9) = x(9);
-    Ax(10) = x(10);
-    Ax(11) = x(11);
-}
-
 void c_call_test(float x[12][10]){
     x[0][0] = -85.0;
     x[1][0] = -99.0;
@@ -42,14 +27,14 @@ void c_call_test(float x[12][10]){
 void julia_sim_wrapper_solve_lqr(float x[12][10], float u[4][9]){
     // Copy data from problem_data/quadrotor*.hpp
     struct tiny_cache cache;
-    cache.Adyn = Eigen::Map<Matrix<tinytype, NSTATES, NSTATES, Eigen::RowMajor>>(Adyn_data);
-    cache.Bdyn = Eigen::Map<Matrix<tinytype, NSTATES, NINPUTS, Eigen::RowMajor>>(Bdyn_data);
-    cache.rho = rho_value;
-    cache.Kinf = Eigen::Map<Matrix<tinytype, NINPUTS, NSTATES, Eigen::RowMajor>>(Kinf_data);
-    cache.Pinf = Eigen::Map<Matrix<tinytype, NSTATES, NSTATES, Eigen::RowMajor>>(Pinf_data);
-    cache.Quu_inv = Eigen::Map<Matrix<tinytype, NINPUTS, NINPUTS, Eigen::RowMajor>>(Quu_inv_data);
-    cache.AmBKt = Eigen::Map<Matrix<tinytype, NSTATES, NSTATES, Eigen::RowMajor>>(AmBKt_data);
-    cache.coeff_d2p = Eigen::Map<Matrix<tinytype, NSTATES, NINPUTS, Eigen::RowMajor>>(coeff_d2p_data);
+    cache.Adyn[0] = Eigen::Map<Matrix<tinytype, NSTATES, NSTATES, Eigen::RowMajor>>(Adyn_data);
+    cache.Bdyn[0] = Eigen::Map<Matrix<tinytype, NSTATES, NINPUTS, Eigen::RowMajor>>(Bdyn_data);
+    cache.rho[0] = rho_value;
+    cache.Kinf[0] = Eigen::Map<Matrix<tinytype, NINPUTS, NSTATES, Eigen::RowMajor>>(Kinf_data);
+    cache.Pinf[0] = Eigen::Map<Matrix<tinytype, NSTATES, NSTATES, Eigen::RowMajor>>(Pinf_data);
+    cache.Quu_inv[0] = Eigen::Map<Matrix<tinytype, NINPUTS, NINPUTS, Eigen::RowMajor>>(Quu_inv_data);
+    cache.AmBKt[0] = Eigen::Map<Matrix<tinytype, NSTATES, NSTATES, Eigen::RowMajor>>(AmBKt_data);
+    cache.coeff_d2p[0] = Eigen::Map<Matrix<tinytype, NSTATES, NINPUTS, Eigen::RowMajor>>(coeff_d2p_data);
 
     struct tiny_params params;
     params.Q = Eigen::Map<tiny_VectorNx>(Q_data);
@@ -124,9 +109,6 @@ void julia_sim_wrapper_solve_lqr(float x[12][10], float u[4][9]){
 
 }
 
-void solve_lqr(struct tiny_problem *problem, const struct tiny_params *params) {
-    problem->u.col(0) = -params->cache.Kinf * (problem->x.col(0) - params->Xref.col(0));
-}
 
 void julia_sim_wrapper_solve_admm(float x[NSTATES][NHORIZON], float u[NINPUTS][NHORIZON-1], int mpc_iter, float x_max_given[NHORIZON], float A_ineq_given[3][NHORIZON]){
     // Copy data from problem_data/quadrotor*.hpp
@@ -202,6 +184,7 @@ void julia_sim_wrapper_solve_admm(float x[NSTATES][NHORIZON], float u[NINPUTS][N
     problem.status = 0;
     problem.iter = 0;
     problem.max_iter = 20;
+    problem.cache_level = 0; // 0 to use rho corresponding to inactive constraints (1 to use rho corresponding to active constraints)
 
     // Copy reference trajectory into Eigen matrix
     Matrix<tinytype, NSTATES, NTOTAL, Eigen::ColMajor> Xref_total = Eigen::Map<Matrix<tinytype, NTOTAL, NSTATES, Eigen::RowMajor>>(Xref_data).transpose();
@@ -398,7 +381,6 @@ void update_slack(struct tiny_problem *problem, const struct tiny_params *params
     problem->xg = problem->x + problem->g;
     // problem->dists = (params->A_constraints.transpose().cwiseProduct(problem->xg)).colwise().sum();
     // problem->dists -= params->x_max;
-    problem->intersect = 0;
     // startTimestamp = usecTimestamp();
     for (int i=0; i<NHORIZON; i++) {
         problem->dist = (params->A_constraints[i].head(3)).lazyProduct(problem->xg.col(i).head(3)); // Distances can be computed in one step outside the for loop
@@ -408,7 +390,6 @@ void update_slack(struct tiny_problem *problem, const struct tiny_params *params
             problem->vnew.col(i) = problem->xg.col(i);
         }
         else {
-            problem->intersect++;
             problem->xyz_new = problem->xg.col(i).head(3) - problem->dist*params->A_constraints[i].head(3).transpose();
             problem->vnew.col(i) << problem->xyz_new, problem->xg.col(i).tail(NSTATES-3);
         }
