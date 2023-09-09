@@ -141,19 +141,17 @@ void update_slack(struct tiny_problem *problem, const struct tiny_params *params
     problem->cache_level = 0;
     problem->xg = problem->x + problem->g;
     for (int i=0; i<NHORIZON; i++) {
-        problem->dist = (params->A_constraints[i].block<1,3>(0,0)).lazyProduct(problem->xg.col(i).head(3)); // Distances can be computed in one step outside the for loop
+        problem->dist = (params->A_constraints[i].block<1,2>(0,0)).lazyProduct(problem->xg.col(i).head(2)); // Distances can be computed in one step outside the for loop
         problem->dist -= params->x_max[i](0);
         if (problem->dist <= 0) {
             problem->vnew.col(i) = problem->xg.col(i);
         }
         else {
             problem->cache_level = 1;
-            problem->xyz_new = problem->xg.col(i).head(3) - problem->dist*params->A_constraints[i].block<1,3>(0,0).transpose();
-            problem->vnew.col(i) << problem->xyz_new, problem->xg.col(i).tail(NSTATES-3);
+            problem->xyz_new = problem->xg.col(i).head(2) - problem->dist*params->A_constraints[i].block<1,2>(0,0).transpose();
+            problem->vnew.col(i) << problem->xyz_new, problem->xg.col(i).tail(NSTATES-2);
         }
-        problem->vnew.col(i)(0) = 0; // Project onto yz-plane. This should be incorporated into the sphere projection for maximum efficiency
     }
-
 }
 
 /**
