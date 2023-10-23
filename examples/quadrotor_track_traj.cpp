@@ -2,18 +2,19 @@
 
 #include <tinympc/admm.hpp>
 #include "problem_data/quadrotor_50hz_params.hpp"
-#include "trajectory_data/quadrotor_100hz_ref_hover.hpp"
+// #include "trajectory_data/quadrotor_100hz_ref_hover.hpp"
 
 using Eigen::Matrix;
 
-#define DT 1/100
-
 extern "C" {
+
+static struct tiny_cache cache;
+static struct tiny_params params;
+static struct tiny_problem problem;
 
 int main() {
 
     // Copy data from problem_data/quadrotor*.hpp
-    struct tiny_cache cache;
     cache.Adyn[0] = Eigen::Map<Matrix<tinytype, NSTATES, NSTATES, Eigen::RowMajor>>(Adyn_data);
     cache.Bdyn[0] = Eigen::Map<Matrix<tinytype, NSTATES, NINPUTS, Eigen::RowMajor>>(Bdyn_data);
     cache.rho[0] = rho_value;
@@ -23,7 +24,6 @@ int main() {
     cache.AmBKt[0] = Eigen::Map<Matrix<tinytype, NSTATES, NSTATES, Eigen::RowMajor>>(AmBKt_data);
     cache.coeff_d2p[0] = Eigen::Map<Matrix<tinytype, NSTATES, NINPUTS, Eigen::RowMajor>>(coeff_d2p_data);
 
-    struct tiny_params params;
     params.Q[0] = Eigen::Map<tiny_VectorNx>(Q_data);
     params.Qf[0] = Eigen::Map<tiny_VectorNx>(Qf_data);
     params.R[0] = Eigen::Map<tiny_VectorNu>(R_data);
@@ -38,7 +38,6 @@ int main() {
     params.Uref = tiny_MatrixNuNhm1::Zero();
     params.cache = cache;
 
-    struct tiny_problem problem;
     problem.x = tiny_MatrixNxNh::Zero();
     problem.q = tiny_MatrixNxNh::Zero();
     problem.p = tiny_MatrixNxNh::Zero();
@@ -60,24 +59,28 @@ int main() {
     problem.abs_tol = 0.001;
     problem.status = 0;
     problem.iter = 0;
-    problem.max_iter = 20;
+    problem.max_iter = 1000;
     problem.iters_check_rho_update = 10;
 
-    // Copy reference trajectory into Eigen matrix
-    // Matrix<tinytype, NSTATES, NTOTAL, Eigen::ColMajor> Xref_total = Eigen::Map<Matrix<tinytype, NTOTAL, NSTATES, Eigen::RowMajor>>(Xref_data).transpose();
-    Matrix<tinytype, NSTATES, 1> Xref_origin;
-    Xref_origin << 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+    // // Copy reference trajectory into Eigen matrix
+    // // Matrix<tinytype, NSTATES, NTOTAL, Eigen::ColMajor> Xref_total = Eigen::Map<Matrix<tinytype, NTOTAL, NSTATES, Eigen::RowMajor>>(Xref_data).transpose();
+    // Matrix<tinytype, NSTATES, 1> Xref_origin;
+    // Xref_origin << 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
-    // params.Xref = Xref_total.block<NSTATES, NHORIZON>(0,0);
-    params.Xref = Xref_origin.replicate<1,NHORIZON>();
-    // problem.x.col(0) = params.Xref.col(0);
-    problem.x.col(0) << 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0;
+    // // params.Xref = Xref_total.block<NSTATES, NHORIZON>(0,0);
+    // params.Xref = Xref_origin.replicate<1,NHORIZON>();
+    // // problem.x.col(0) = params.Xref.col(0);
+    // problem.x.col(0) << 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0;
 
-    // std::cout << params.Xref << std::endl;
+    // // std::cout << params.Xref << std::endl;
 
-    solve_admm(&problem, &params);
-    // std::cout << problem.x.block<NSTATES, 5>(0,0) << std::endl;
-    // std::cout << problem.x.block<NSTATES, 5>(0,NHORIZON-5) << std::endl;
+    for (int i=0; i<100; i++) {
+        solve_admm(&problem, &params);
+        problem.x.col(0) = params.cache.Adyn[0]*problem.x.col(0) + params.cache.Bdyn[0]*problem.u.col(0);
+    }
+
+
+    // std::cout << problem.x << std::endl;
 
     // std::cout << problem.iter << std::endl;
     // std::cout << problem.u.col(0)(0) << std::endl;
