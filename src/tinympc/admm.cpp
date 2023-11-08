@@ -4,6 +4,9 @@
 
 #define DEBUG_MODULE "TINYALG"
 
+int var = 5;
+int *var_ptr = &var;
+
 extern "C"
 {
     static uint64_t startTimestamp;
@@ -11,6 +14,16 @@ extern "C"
     /**
      * Do backward Riccati pass then forward roll out
      */
+
+    void update_int(){
+        *var_ptr = *var_ptr*2;
+        printf("Updated value:  %d\n", *var_ptr );
+    }
+
+    void print_int(){
+        printf("Value:  %d\n", *var_ptr );
+    }
+
     void update_primal(TinySolver *solver)
     {
         backward_pass_grad(solver);
