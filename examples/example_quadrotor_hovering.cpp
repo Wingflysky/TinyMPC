@@ -15,7 +15,7 @@ extern "C"
 
     int main()
     {
-        // Map data from problem_data
+        // Map data from problem_data (array in row-major order)
         cache.rho = rho_value;
         cache.Kinf = Eigen::Map<Matrix<tinytype, NINPUTS, NSTATES, Eigen::RowMajor>>(Kinf_data);
         cache.Pinf = Eigen::Map<Matrix<tinytype, NSTATES, NSTATES, Eigen::RowMajor>>(Pinf_data);
@@ -69,15 +69,15 @@ extern "C"
         // Hovering setpoint
         tiny_VectorNx Xref_origin;
         Xref_origin << 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0;
-        work.Xref = Xref_origin.replicate<1, NHORIZON>(); 
+        work.Xref = Xref_origin.replicate<1, NHORIZON>();
 
-        // Initial state    
+        // Initial state
         x0 << 0, 1, 0, 0.2, 0, 0, 0.1, 0, 0, 0, 0, 0;
 
         for (int k = 0; k < 70; ++k)
         {
             printf("tracking error at step %2d: %.4f\n", k, (x0 - work.Xref.col(1)).norm());
-            
+
             // 1. Update measurement
             work.x.col(0) = x0;
 

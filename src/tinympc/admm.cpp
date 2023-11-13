@@ -9,6 +9,7 @@ int *var_ptr = &var;
 
 extern "C"
 {
+
     static uint64_t startTimestamp;
 
     /**
@@ -105,11 +106,10 @@ extern "C"
         solver->work->p.col(NHORIZON - 1) -= solver->cache->rho * (solver->work->vnew.col(NHORIZON - 1) - solver->work->g.col(NHORIZON - 1));
     }
 
-    
     int tiny_solve(TinySolver *solver)
     {
         // Initialize variables
-        solver->work->status = 11;  // TINY_UNSOLVED
+        solver->work->status = 11; // TINY_UNSOLVED
         solver->work->iter = 1;
 
         forward_pass(solver);
@@ -143,8 +143,8 @@ extern "C"
                     solver->work->dual_residual_state < solver->settings->abs_dua_tol &&
                     solver->work->dual_residual_input < solver->settings->abs_dua_tol)
                 {
-                    solver->work->status = 1;  // TINY_SOLVED
-                    return 0; // 0 means solved with no error
+                    solver->work->status = 1; // TINY_SOLVED
+                    return 0;                 // 0 means solved with no error
                 }
             }
 
