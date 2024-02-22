@@ -338,7 +338,7 @@ extern "C"
         fprintf(data_f, " */\n\n");
 
         // Open extern C
-        fprintf(data_f, "#include <tinympc/tiny_data_workspace.hpp>\n\n");
+        fprintf(data_f, "#include <tiny_data_workspace.hpp>\n\n");
         fprintf(data_f, "#ifdef __cplusplus\n");
         fprintf(data_f, "extern \"C\" {\n");
         fprintf(data_f, "#endif\n\n");
